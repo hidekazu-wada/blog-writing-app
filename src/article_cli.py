@@ -111,10 +111,11 @@ def main():
         
         # プロンプトをコピー
         prompts_source_path = None
+        json_data = generator.json_data
+        pattern = json_data.get('pattern', 'Unknown')
+        prompts_source = Path(args.prompts_dir) / f"pattern_{pattern}"
+        
         if args.copy_prompts:
-            json_data = generator.json_data
-            pattern = json_data.get('pattern', 'Unknown')
-            prompts_source = Path(args.prompts_dir) / f"pattern_{pattern}"
             prompts_dest = Path(article_path) / 'prompts' / f"pattern_{pattern}"
             
             if prompts_source.exists():
@@ -126,6 +127,10 @@ def main():
                 print(f"プロンプトをコピーしました: {prompts_dest}")
             else:
                 print(f"警告: プロンプトディレクトリが見つかりません: {prompts_source}")
+        else:
+            # コピーしない場合でも、クリーンアップ用にパスを保持
+            if prompts_source.exists():
+                prompts_source_path = prompts_source
         
         # クリーンアップ処理
         if args.cleanup or args.archive:
@@ -177,10 +182,13 @@ def main():
                     pattern_dir = prompts_source_path.parent
                     if pattern_dir.exists() and not any(pattern_dir.iterdir()):
                         pattern_dir.rmdir()
+                        print(f"空のパターンディレクトリを削除しました: {pattern_dir}")
                     
+                    # プロンプトベースディレクトリが空になったら削除
                     prompts_base_dir = pattern_dir.parent
                     if prompts_base_dir.exists() and not any(prompts_base_dir.iterdir()):
                         prompts_base_dir.rmdir()
+                        print(f"空のプロンプトディレクトリを削除しました: {prompts_base_dir}")
         
     except Exception as e:
         print(f"エラー: ディレクトリ構造の生成に失敗しました: {e}")

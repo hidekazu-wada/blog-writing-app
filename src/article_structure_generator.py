@@ -137,6 +137,10 @@ class ArticleStructureGenerator:
             h2_path = content_path / h2_dir_name
             h2_path.mkdir(exist_ok=True)
             
+            # imagesディレクトリを作成
+            images_path = h2_path / 'images'
+            images_path.mkdir(exist_ok=True)
+            
             # H2ファイルを作成
             h2_file = h2_path / f"h2-{h2_index}_{h2_title}.md"
             with open(h2_file, 'w', encoding='utf-8') as f:
