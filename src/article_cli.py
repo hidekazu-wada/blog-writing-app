@@ -24,8 +24,8 @@ def main():
     parser.add_argument(
         '-o', '--output',
         type=str,
-        default='output/articles',
-        help='出力ディレクトリのパス（デフォルト: output/articles）'
+        default='output',
+        help='出力ディレクトリのパス（デフォルト: output）'
     )
     parser.add_argument(
         '--h1-title',
@@ -45,11 +45,6 @@ def main():
         help='元のHTMLファイルのパス（メタデータ用）'
     )
     parser.add_argument(
-        '--copy-prompts',
-        action='store_true',
-        help='プロンプトも記事ディレクトリにコピーする'
-    )
-    parser.add_argument(
         '--prompts-dir',
         type=str,
         default='output/prompts',
@@ -58,12 +53,7 @@ def main():
     parser.add_argument(
         '--cleanup',
         action='store_true',
-        help='記事生成後、使用したJSONとプロンプトを削除する'
-    )
-    parser.add_argument(
-        '--archive',
-        action='store_true',
-        help='記事生成後、使用したJSONとプロンプトをアーカイブに移動する'
+        help='記事生成後、使用したJSONファイルを削除する'
     )
     
     args = parser.parse_args()
@@ -97,98 +87,57 @@ def main():
         print(f"例: --h1-title \"{h1_candidates[0]}\"")
         sys.exit(0)
     
+    # 同じHTMLファイルから生成された既存のcontentとpromptsを削除
+    if args.source_html:
+        import json
+        import shutil
+        output_path = Path(args.output)
+        source_html_path = Path(args.source_html).resolve()
+        
+        if output_path.exists():
+            metadata_file = output_path / '.article.json'
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                    
+                    existing_source_html = metadata.get('source_html')
+                    if existing_source_html:
+                        existing_path = Path(existing_source_html).resolve()
+                        if existing_path == source_html_path:
+                            # 既存のcontentのみ削除
+                            # 一時的なプロンプト（output/prompts/pattern_*）は削除しない
+                            content_path = output_path / 'content'
+                            if content_path.exists():
+                                shutil.rmtree(content_path)
+                                print(f"既存のcontentディレクトリを削除しました")
+                            # 記事用のpromptsディレクトリ（output/prompts）は削除しない
+                            # 一時的なプロンプト（output/prompts/pattern_*）と同じ場所にあるため
+                except (json.JSONDecodeError, Exception) as e:
+                    # メタデータファイルの読み込みに失敗した場合はスキップ
+                    pass
+    
     # ディレクトリ構造を生成
     print("\n" + "="*60)
     print("記事ディレクトリ構造を生成中...")
     print("="*60)
     
     try:
-        article_path = generator.generate_structure(
+        generated_output_path = generator.generate_structure(
             args.output,
             args.h1_title,
             args.source_html
         )
         
-        # プロンプトをコピー
-        prompts_source_path = None
-        json_data = generator.json_data
-        pattern = json_data.get('pattern', 'Unknown')
-        prompts_source = Path(args.prompts_dir) / f"pattern_{pattern}"
+        # プロンプトは既に output/prompts/pattern_A に生成されているので、コピー不要
+        # 記事ディレクトリ内のpromptsディレクトリは作成しない（output/prompts/pattern_Aを直接使用）
         
-        if args.copy_prompts:
-            prompts_dest = Path(article_path) / 'prompts' / f"pattern_{pattern}"
-            
-            if prompts_source.exists():
-                import shutil
-                if prompts_dest.exists():
-                    shutil.rmtree(prompts_dest)
-                shutil.copytree(prompts_source, prompts_dest)
-                prompts_source_path = prompts_source
-                print(f"プロンプトをコピーしました: {prompts_dest}")
-            else:
-                print(f"警告: プロンプトディレクトリが見つかりません: {prompts_source}")
-        else:
-            # コピーしない場合でも、クリーンアップ用にパスを保持
-            if prompts_source.exists():
-                prompts_source_path = prompts_source
-        
-        # クリーンアップ処理
-        if args.cleanup or args.archive:
-            import shutil
+        # クリーンアップ処理（JSONファイルのみ削除）
+        if args.cleanup:
             json_path = Path(args.json_file)
-            
-            if args.archive:
-                # アーカイブディレクトリを作成
-                archive_dir = Path(args.output).parent / 'archive'
-                archive_dir.mkdir(exist_ok=True)
-                
-                # JSONファイルをアーカイブ
-                if json_path.exists() and json_path.parent.name == 'output':
-                    archive_json = archive_dir / json_path.name
-                    if not archive_json.exists():
-                        shutil.move(str(json_path), str(archive_json))
-                        print(f"JSONファイルをアーカイブしました: {archive_json}")
-                
-                # プロンプトをアーカイブ
-                if prompts_source_path and prompts_source_path.exists():
-                    archive_prompts = archive_dir / 'prompts' / prompts_source_path.name
-                    archive_prompts.parent.mkdir(parents=True, exist_ok=True)
-                    if not archive_prompts.exists():
-                        shutil.move(str(prompts_source_path), str(archive_prompts))
-                        print(f"プロンプトをアーカイブしました: {archive_prompts}")
-                
-                # パターンディレクトリが空になったら削除
-                if prompts_source_path:
-                    pattern_dir = prompts_source_path.parent
-                    if pattern_dir.exists() and not any(pattern_dir.iterdir()):
-                        pattern_dir.rmdir()
-                        print(f"空のパターンディレクトリを削除しました: {pattern_dir}")
-                    
-                    prompts_base_dir = pattern_dir.parent
-                    if prompts_base_dir.exists() and not any(prompts_base_dir.iterdir()):
-                        prompts_base_dir.rmdir()
-                        print(f"空のプロンプトディレクトリを削除しました: {prompts_base_dir}")
-            else:
-                # 削除処理
-                if json_path.exists() and json_path.parent.name == 'output':
-                    json_path.unlink()
-                    print(f"JSONファイルを削除しました: {json_path}")
-                
-                if prompts_source_path and prompts_source_path.exists():
-                    shutil.rmtree(prompts_source_path)
-                    print(f"プロンプトディレクトリを削除しました: {prompts_source_path}")
-                    
-                    # パターンディレクトリが空になったら削除
-                    pattern_dir = prompts_source_path.parent
-                    if pattern_dir.exists() and not any(pattern_dir.iterdir()):
-                        pattern_dir.rmdir()
-                        print(f"空のパターンディレクトリを削除しました: {pattern_dir}")
-                    
-                    # プロンプトベースディレクトリが空になったら削除
-                    prompts_base_dir = pattern_dir.parent
-                    if prompts_base_dir.exists() and not any(prompts_base_dir.iterdir()):
-                        prompts_base_dir.rmdir()
-                        print(f"空のプロンプトディレクトリを削除しました: {prompts_base_dir}")
+            if json_path.exists() and json_path.parent.name == 'output':
+                json_path.unlink()
+                print(f"JSONファイルを削除しました: {json_path}")
         
     except Exception as e:
         print(f"エラー: ディレクトリ構造の生成に失敗しました: {e}")
@@ -203,7 +152,7 @@ def main():
     print(f"\n**パターン:** {pattern}")
     print(f"**H1タイトル:** {h1_title}")
     print(f"**H2の数:** {h2_count}")
-    print(f"\n出力先: {article_path}")
+    print(f"\n出力先: {generated_output_path}")
     print("\n完了しました！")
 
 

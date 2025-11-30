@@ -33,9 +33,12 @@ class PromptGenerator:
     
     def extract_phase(self, phase_name: str) -> Optional[str]:
         """テンプレートから特定のフェーズを抽出"""
+        # テンプレート内の`\_`を`_`に正規化してから検索
+        # （Markdownのエスケープ記法に対応）
+        normalized_content = self.template_content.replace('\\_', '_')
         # フェーズの開始パターンを検索
         pattern = rf'## {re.escape(phase_name)}.*?\n(.*?)(?=\n## |\Z)'
-        match = re.search(pattern, self.template_content, re.DOTALL)
+        match = re.search(pattern, normalized_content, re.DOTALL)
         if match:
             return match.group(1).strip()
         return None
@@ -228,7 +231,7 @@ class PromptGenerator:
         base_path = Path(output_dir) / f"pattern_{pattern}"
         base_path.mkdir(parents=True, exist_ok=True)
         
-        # phase1: 各H2ごとに保存
+        # phase1: 各H2ごとに保存（プロンプト本文のみ）
         phase1_dir = base_path / "phase1"
         phase1_dir.mkdir(exist_ok=True)
         for prompt_data in prompts.get('phase1', []):
@@ -236,14 +239,14 @@ class PromptGenerator:
             h2_safe = self._sanitize_filename(prompt_data['h2'])
             file_path = phase1_dir / f"{h2_index:02d}_{h2_safe}.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(f"# Phase 1: FACT_ソース集め\n\n")
-                f.write(f"**パターン:** {pattern}\n")
-                f.write(f"**H2番号:** {h2_index}\n")
-                f.write(f"**対象H2:** {prompt_data['h2']}\n\n")
-                f.write("---\n\n")
-                f.write(prompt_data['prompt'])
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = prompt_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
         
-        # phase2: 各H3ごとに保存
+        # phase2: 各H3ごとに保存（プロンプト本文のみ）
         phase2_dir = base_path / "phase2"
         phase2_dir.mkdir(exist_ok=True)
         for prompt_data in prompts.get('phase2', []):
@@ -253,16 +256,14 @@ class PromptGenerator:
             h3_safe = self._sanitize_filename(prompt_data['h3'])
             file_path = phase2_dir / f"{h2_index:02d}_{h3_index:02d}_{h3_safe}.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(f"# Phase 2: FACT_アウトプット\n\n")
-                f.write(f"**パターン:** {pattern}\n")
-                f.write(f"**H2番号:** {h2_index}\n")
-                f.write(f"**H3番号:** {h3_index}\n")
-                f.write(f"**対象H2:** {prompt_data['h2']}\n")
-                f.write(f"**対象H3:** {prompt_data['h3']}\n\n")
-                f.write("---\n\n")
-                f.write(prompt_data['prompt'])
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = prompt_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
         
-        # phase3: 各H2ごとに保存
+        # phase3: 各H2ごとに保存（プロンプト本文のみ）
         phase3_dir = base_path / "phase3"
         phase3_dir.mkdir(exist_ok=True)
         for prompt_data in prompts.get('phase3', []):
@@ -270,51 +271,54 @@ class PromptGenerator:
             h2_safe = self._sanitize_filename(prompt_data['h2'])
             file_path = phase3_dir / f"{h2_index:02d}_{h2_safe}.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(f"# Phase 3: Experience_アウトプット\n\n")
-                f.write(f"**パターン:** {pattern}\n")
-                f.write(f"**H2番号:** {h2_index}\n")
-                f.write(f"**対象H2:** {prompt_data['h2']}\n\n")
-                f.write("---\n\n")
-                f.write(prompt_data['prompt'])
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = prompt_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
         
-        # phase4: 設計図とプロンプトを保存
+        # phase4: プロンプト本文のみを保存（メタデータと設計図は含めない）
         phase4_dir = base_path / "phase4"
         phase4_dir.mkdir(exist_ok=True)
         phase4_data = prompts.get('phase4', {})
         if phase4_data:
             file_path = phase4_dir / "記事執筆.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write("# Phase 4: 記事執筆\n\n")
-                f.write(f"**パターン:** {pattern}\n\n")
-                f.write("---\n\n")
-                f.write(phase4_data['prompt'])
-                f.write("\n\n---\n\n")
-                f.write("## 設計図（Pascal_Blueprint）\n\n")
-                f.write(phase4_data.get('blueprint', ''))
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = phase4_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
         
-        # phase5: テンプレートを保存
+        # phase5: プロンプト本文のみを保存（メタデータは含めない）
         phase5_dir = base_path / "phase5"
         phase5_dir.mkdir(exist_ok=True)
         phase5_data = prompts.get('phase5', {})
         if phase5_data:
             file_path = phase5_dir / "画像生成.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write("# Phase 5: 画像生成\n\n")
-                f.write(f"**パターン:** {pattern}\n\n")
-                f.write("---\n\n")
-                f.write(phase5_data['prompt'])
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = phase5_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
         
-        # phase6: テンプレートを保存
+        # phase6: プロンプト本文のみを保存（メタデータは含めない）
         phase6_dir = base_path / "phase6"
         phase6_dir.mkdir(exist_ok=True)
         phase6_data = prompts.get('phase6', {})
         if phase6_data:
             file_path = phase6_dir / "まとめ.md"
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write("# Phase 6: まとめ\n\n")
-                f.write(f"**パターン:** {pattern}\n\n")
-                f.write("---\n\n")
-                f.write(phase6_data['prompt'])
+                # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
+                prompt_text = phase6_data['prompt'].rstrip()
+                # 最後の「---」を削除
+                if prompt_text.endswith('---'):
+                    prompt_text = prompt_text[:-3].rstrip()
+                f.write(prompt_text)
     
     def _sanitize_filename(self, filename: str) -> str:
         """ファイル名に使えない文字を置換"""

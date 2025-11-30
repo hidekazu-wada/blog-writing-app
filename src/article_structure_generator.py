@@ -63,7 +63,7 @@ class ArticleStructureGenerator:
     def generate_structure(self, output_dir: str, selected_h1_title: Optional[str] = None, 
                           source_html_file: Optional[str] = None):
         """
-        記事ディレクトリ構造を生成（ハイブリッド構造）
+        記事ディレクトリ構造を生成
         
         Args:
             output_dir: 出力先ディレクトリ
@@ -85,16 +85,13 @@ class ArticleStructureGenerator:
         else:
             h1_title = h1_candidates[0]
         
-        # 記事IDを生成
+        # 記事IDを生成（メタデータ用）
         article_id = self._generate_article_id(str(output_path), h1_title)
-        article_path = output_path / article_id
-        article_path.mkdir(exist_ok=True)
         
-        # サブディレクトリを作成
-        content_path = article_path / 'content'
+        # サブディレクトリを作成（output直下）
+        content_path = output_path / 'content'
         content_path.mkdir(exist_ok=True)
-        prompts_path = article_path / 'prompts'
-        prompts_path.mkdir(exist_ok=True)
+        # promptsディレクトリは作成しない（output/prompts/pattern_Aを直接使用）
         
         # メタデータファイルを作成
         pattern = self.json_data.get('pattern', 'Unknown')
@@ -110,13 +107,14 @@ class ArticleStructureGenerator:
             'originality_proposals_count': len(self.json_data.get('originality_proposals', []))
         }
         
-        metadata_file = article_path / '.article.json'
+        metadata_file = output_path / '.article.json'
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, ensure_ascii=False, indent=2)
         
-        # 元のJSONデータをコピー
-        source_json_file = article_path / 'source.json'
-        shutil.copy2(self.json_file, source_json_file)
+        # 元のJSONデータをコピー（既に同じ場所にある場合はスキップ）
+        source_json_file = output_path / 'source.json'
+        if self.json_file.resolve() != source_json_file.resolve():
+            shutil.copy2(self.json_file, source_json_file)
         
         # H1ファイルを作成（contentディレクトリ内）
         h1_file = content_path / f"h1_{h1_title}.md"
@@ -136,10 +134,6 @@ class ArticleStructureGenerator:
             h2_dir_name = f"h2-{h2_index}_{self._sanitize_filename(h2_title)}"
             h2_path = content_path / h2_dir_name
             h2_path.mkdir(exist_ok=True)
-            
-            # imagesディレクトリを作成
-            images_path = h2_path / 'images'
-            images_path.mkdir(exist_ok=True)
             
             # H2ファイルを作成
             h2_file = h2_path / f"h2-{h2_index}_{h2_title}.md"
@@ -199,7 +193,7 @@ class ArticleStructureGenerator:
                     f.write(f"### {h3_title}\n\n")
                     f.write("<!-- ここにH3用のコンテンツを記入 -->\n")
         
-        return str(article_path)
+        return str(output_path)
     
     def list_h1_candidates(self) -> List[str]:
         """H1タイトル候補のリストを返す"""
