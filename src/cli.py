@@ -84,6 +84,8 @@ def select_proposals(parser: PascalParser) -> List[int]:
 
 def save_output(data: dict, output_path: Path):
     """結果をJSONファイルに保存"""
+    # 出力ディレクトリが存在しない場合は作成
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"\n結果を保存しました: {output_path}")
