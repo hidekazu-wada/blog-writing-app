@@ -156,7 +156,7 @@ class PromptGenerator:
     
     def generate_phase5(self) -> Dict[str, str]:
         """phase5プロンプトを生成（テンプレートのみ）"""
-        phase_template = self.extract_phase('phase5（画像生成）')
+        phase_template = self.extract_phase('phase6（まとめ）')
         if not phase_template:
             return {}
         
@@ -167,7 +167,7 @@ class PromptGenerator:
     
     def generate_phase6(self) -> Dict[str, str]:
         """phase6プロンプトを生成（テンプレートのみ）"""
-        phase_template = self.extract_phase('phase6（まとめ）')
+        phase_template = self.extract_phase('phase5（画像生成）')
         if not phase_template:
             return {}
         
@@ -297,7 +297,7 @@ class PromptGenerator:
         phase5_dir.mkdir(exist_ok=True)
         phase5_data = prompts.get('phase5', {})
         if phase5_data:
-            file_path = phase5_dir / "画像生成.md"
+            file_path = phase5_dir / "まとめ.md"
             with open(file_path, 'w', encoding='utf-8') as f:
                 # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
                 prompt_text = phase5_data['prompt'].rstrip()
@@ -311,7 +311,7 @@ class PromptGenerator:
         phase6_dir.mkdir(exist_ok=True)
         phase6_data = prompts.get('phase6', {})
         if phase6_data:
-            file_path = phase6_dir / "まとめ.md"
+            file_path = phase6_dir / "画像生成.md"
             with open(file_path, 'w', encoding='utf-8') as f:
                 # プロンプト本文のみを保存（メタデータと最後の区切り線は含めない）
                 prompt_text = phase6_data['prompt'].rstrip()
