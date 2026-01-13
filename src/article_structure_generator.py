@@ -95,6 +95,10 @@ class ArticleStructureGenerator:
         
         # メタデータファイルを作成
         pattern = self.json_data.get('pattern', 'Unknown')
+        article_structure = self.json_data.get('article_structure', [])
+        originality_proposals = self.json_data.get('originality_proposals', [])
+        total_h2_count = len(article_structure) + len(originality_proposals)
+        
         metadata = {
             'article_id': article_id,
             'h1_title': h1_title,
@@ -103,8 +107,10 @@ class ArticleStructureGenerator:
             'created_at': datetime.now().isoformat(),
             'source_json': str(self.json_file.name),
             'source_html': source_html_file if source_html_file else None,
-            'h2_count': len(self.json_data.get('article_structure', [])),
-            'originality_proposals_count': len(self.json_data.get('originality_proposals', []))
+            'h2_count': total_h2_count,
+            'h2_count_from_pattern': len(article_structure),
+            'h2_count_from_proposals': len(originality_proposals),
+            'originality_proposals_count': len(originality_proposals)
         }
         
         metadata_file = output_path / '.article.json'
@@ -192,6 +198,47 @@ class ArticleStructureGenerator:
                 with open(h3_file, 'w', encoding='utf-8') as f:
                     f.write(f"### {h3_title}\n\n")
                     f.write("<!-- ここにH3用のコンテンツを記入 -->\n")
+        
+        # 独自性の提案をh2として追加
+        originality_proposals = self.json_data.get('originality_proposals', [])
+        base_h2_index = len(article_structure)
+        
+        for proposal_index, proposal in enumerate(originality_proposals, start=1):
+            h2_index = base_h2_index + proposal_index
+            h2_title = proposal.get('title', '')
+            if not h2_title:
+                continue
+            
+            # H2ディレクトリを作成（contentディレクトリ内）
+            h2_dir_name = f"h2-{h2_index}_{self._sanitize_filename(h2_title)}"
+            h2_path = content_path / h2_dir_name
+            h2_path.mkdir(exist_ok=True)
+            
+            # H2ファイルを作成
+            h2_file = h2_path / f"h2-{h2_index}_{h2_title}.md"
+            with open(h2_file, 'w', encoding='utf-8') as f:
+                f.write(f"## {h2_title}\n\n")
+                f.write("<!-- ここにH2用のコンテンツを記入 -->\n")
+            
+            # Pascalファイルを作成（独自性の提案のアドバイスを含む）
+            pascal_file = h2_path / f"pascal_h2-{h2_index}.md"
+            with open(pascal_file, 'w', encoding='utf-8') as f:
+                f.write(f"# Pascal設計図: {h2_title}\n\n")
+                f.write(f"**パターン:** {pattern}\n")
+                f.write(f"**H2番号:** {h2_index}\n")
+                f.write(f"**種別:** 独自性の提案\n\n")
+                
+                # 執筆アドバイス
+                advice = proposal.get('advice', '')
+                if advice:
+                    f.write(f"**執筆アドバイス:**\n\n")
+                    f.write(f"{advice}\n\n")
+            
+            # Experienceファイルを作成
+            experience_file = h2_path / f"experience_h2-{h2_index}.md"
+            with open(experience_file, 'w', encoding='utf-8') as f:
+                f.write(f"# Experience: {h2_title}\n\n")
+                f.write("<!-- ここに体験談を記入 -->\n")
         
         return str(output_path)
     

@@ -147,11 +147,13 @@ def main():
     json_data = generator.json_data
     pattern = json_data.get('pattern', 'Unknown')
     h1_title = args.h1_title or json_data.get('h1_title_candidates', [None])[0]
-    h2_count = len(json_data.get('article_structure', []))
+    h2_count_from_pattern = len(json_data.get('article_structure', []))
+    h2_count_from_proposals = len(json_data.get('originality_proposals', []))
+    total_h2_count = h2_count_from_pattern + h2_count_from_proposals
     
     print(f"\n**パターン:** {pattern}")
     print(f"**H1タイトル:** {h1_title}")
-    print(f"**H2の数:** {h2_count}")
+    print(f"**H2の数:** {total_h2_count} (パターン: {h2_count_from_pattern}, 独自性の提案: {h2_count_from_proposals})")
     print(f"\n出力先: {generated_output_path}")
     print("\n完了しました！")
 
